@@ -1,0 +1,16 @@
+# SavedVariables that the client may write next to the addon during testing
+*.lua.bak
+starting_prompt.md
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.claude/
+.idea/
+*.swp
+*~
