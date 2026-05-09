@@ -29,14 +29,18 @@ local function createToggleButton()
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     b:RegisterForDrag("LeftButton")
 
-    -- Icon
+    -- Icon, masked to a circle so only the gear shows (no rectangular black
+    -- corners poking out from under the ring border).
     local icon = b:CreateTexture(nil, "BACKGROUND")
     icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_03")
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-    icon:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
-    icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -3, 3)
+    icon:SetSize(20, 20)
+    icon:SetPoint("CENTER", b, "CENTER", 0, 0)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    if icon.SetMask then
+        icon:SetMask("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+    end
 
-    -- Decorative border ring.
+    -- Decorative border ring on top of the icon.
     local border = b:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     border:SetSize(54, 54)
@@ -85,9 +89,7 @@ function MoP_GM.RestoreButtonPosition()
     MoP_GM.RestoreFramePoint(b, "button", MoP_GM.defaults.button)
 end
 
-local prevOnLogin = MoP_GM.OnLogin
-function MoP_GM.OnLogin()
-    if prevOnLogin then prevOnLogin() end
+MoP_GM.AddLogin(function()
     if not MoP_GM_ToggleButton then createToggleButton() end
     MoP_GM.RestoreButtonPosition()
-end
+end)

@@ -1,9 +1,8 @@
 -- MoP_GM/UI/MainFrame.lua
--- Movable parent window with header, tab strip, scrolling content, and footer.
+-- Movable parent window with header, tab strip, and scrolling content.
 
 local FRAME_W, FRAME_H = 900, 540
 local HEADER_H = 26
-local FOOTER_H = 38
 local TAB_AREA_H = 32
 
 MoP_GM.tabs = {}      -- array of { id, label, builder, contentFrame }
@@ -19,14 +18,24 @@ end
 local function selectTab(index)
     local tabs = MoP_GM.tabs
     if not tabs[index] then return end
-    PanelTemplates_SetTab(MoP_GM_MainFrame, index)
     for i, tab in ipairs(tabs) do
+        if tab.button then
+            if i == index then
+                tab.button:SetButtonState("PUSHED", true)
+                local fs = tab.button:GetFontString()
+                if fs then fs:SetTextColor(1, 1, 0.4) end
+            else
+                tab.button:SetButtonState("NORMAL", false)
+                local fs = tab.button:GetFontString()
+                if fs then fs:SetTextColor(1, 1, 1) end
+            end
+        end
         if tab.contentFrame then
             if i == index then tab.contentFrame:Show() else tab.contentFrame:Hide() end
         end
     end
     if tabs[index].onShow then tabs[index].onShow() end
-    MoP_GM.db.activeTab = index
+    if MoP_GM.db then MoP_GM.db.activeTab = index end
 end
 MoP_GM.SelectTab = selectTab
 
@@ -39,33 +48,47 @@ local function buildAllTabs()
     local main = MoP_GM_MainFrame
     local strip = main.tabStrip
 
-    -- Create tab buttons + content frames.
+    -- Width of each tab button = label width + padding. We compute it via a
+    -- temporary FontString so different labels get appropriate widths.
+    local sizer = main:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+
+    local prevBtn
     for i, tab in ipairs(MoP_GM.tabs) do
-        local btn = CreateFrame("Button", "MoP_GM_MainFrameTab" .. i, main, "PanelTabButtonTemplate")
+        local btn = CreateFrame("Button", "MoP_GM_MainFrameTab" .. i, main, "UIPanelButtonTemplate")
+        btn:SetHeight(22)
+        sizer:SetText(tab.label)
+        local w = math.max(60, math.ceil(sizer:GetStringWidth()) + 18)
+        btn:SetWidth(w)
         btn:SetText(tab.label)
         btn:SetID(i)
         if i == 1 then
-            btn:SetPoint("BOTTOMLEFT", strip, "BOTTOMLEFT", 4, 0)
+            btn:SetPoint("TOPLEFT", strip, "TOPLEFT", 4, 0)
         else
-            btn:SetPoint("LEFT", _G["MoP_GM_MainFrameTab" .. (i - 1)], "RIGHT", -14, 0)
+            btn:SetPoint("LEFT", prevBtn, "RIGHT", 2, 0)
         end
-        btn:SetScript("OnClick", function(self)
-            PlaySound and PlaySound("UChatScrollButton")
-            selectTab(self:GetID())
-        end)
-        PanelTemplates_TabResize(btn, 0)
+        btn:SetScript("OnClick", function(self) selectTab(self:GetID()) end)
+        tab.button = btn
+        prevBtn = btn
 
+        -- No backdrop on tab content frames — the main panel already provides
+        -- the visual frame, and a tiled backdrop here was causing major FPS
+        -- drops (~5 fps) during scrolling on the 5.4.8 client.
         local content = CreateFrame("Frame", nil, main)
         content:SetPoint("TOPLEFT", main, "TOPLEFT", 8, -HEADER_H - TAB_AREA_H - 8)
-        content:SetPoint("BOTTOMRIGHT", main, "BOTTOMRIGHT", -8, FOOTER_H + 4)
-        MoP_GM.ApplyBackdrop(content, "inset", 0.6)
+        content:SetPoint("BOTTOMRIGHT", main, "BOTTOMRIGHT", -8, 8)
         content:Hide()
         tab.contentFrame = content
 
-        if tab.builder then tab.builder(content) end
+        if tab.builder then
+            local ok, err = pcall(tab.builder, content)
+            if not ok then
+                DEFAULT_CHAT_FRAME:AddMessage("|cffff5555MoP_GM tab '" .. tostring(tab.label) .. "' build error:|r " .. tostring(err))
+            end
+        end
     end
-    PanelTemplates_SetNumTabs(main, #MoP_GM.tabs)
-    selectTab(MoP_GM.db.activeTab or 1)
+    sizer:Hide()
+
+    selectTab((MoP_GM.db and MoP_GM.db.activeTab) or 1)
 end
 
 function MoP_GM.RestoreMainFramePosition()
@@ -103,6 +126,10 @@ local function createMainFrame()
     title:SetPoint("LEFT", header, "LEFT", 8, 0)
     title:SetText(MoP_GM.colors.accent .. "MoP_GM" .. MoP_GM.colors.reset .. "  |cffaaaaaav" .. MoP_GM.version .. "|r")
 
+    local hint = header:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    hint:SetPoint("LEFT", title, "RIGHT", 16, 0)
+    hint:SetText("Right-click any command to pin/unpin from Favorites")
+
     local close = CreateFrame("Button", nil, header, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", 4, 4)
     close:SetScript("OnClick", function() f:Hide() end)
@@ -110,27 +137,26 @@ local function createMainFrame()
     -- Tab strip placeholder; tabs registered by tab files, built in OnLogin.
     f.tabStrip = buildTabStrip(f)
 
-    -- Footer free-text command bar
-    local footer = MoP_GM.CreateFreeTextBar(f)
-    footer:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 4, 4)
-    footer:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
-    f.footer = footer
-
     f:Hide()
     return f
 end
 
--- Wire up via the OnLogin hook (after all tab files have called RegisterTab).
-local prevOnLogin = MoP_GM.OnLogin
-function MoP_GM.OnLogin()
-    if prevOnLogin then prevOnLogin() end
+-- Register a login handler that finishes wiring up the main frame after all
+-- tab files have called RegisterTab.
+MoP_GM.AddLogin(function()
     if not MoP_GM_MainFrame then createMainFrame() end
     MoP_GM.RestoreMainFramePosition()
     buildAllTabs()
-    if MoP_GM.db.frame and MoP_GM.db.frame.shown then
+    if MoP_GM.db and MoP_GM.db.frame and MoP_GM.db.frame.shown then
         MoP_GM_MainFrame:Show()
     end
-end
+end)
 
 -- Create the frame shell early so tabs can refer to it during their builders.
-createMainFrame()
+-- Wrapped in pcall so a load-time error surfaces in chat instead of silently
+-- killing the file (and every tab that depends on RegisterTab below).
+local ok, err = pcall(createMainFrame)
+if not ok then
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff0000MoP_GM MainFrame ERROR:|r " .. tostring(err))
+    MoP_GM._mainFrameLoadError = tostring(err)
+end

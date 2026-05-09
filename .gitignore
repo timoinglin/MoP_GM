@@ -2,6 +2,10 @@
 *.lua.bak
 starting_prompt.md
 
+# Build artifacts (the release zip is built locally and uploaded to GH Releases)
+MoP_GM.zip
+MoP_GM-*.zip
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

@@ -4,22 +4,18 @@
 local ROW_HEIGHT   = 24
 local ROW_SPACING  = 4
 local LABEL_WIDTH  = 150
-local INPUT_WIDTH  = 90
-local RUN_WIDTH    = 50
+local INPUT_WIDTH  = 100
 
 -- ─── Backdrops ─────────────────────────────────────────────────────────────
+-- tile=false (stretched, single sample) renders much faster on 5.4.8 than the
+-- tile=true variant we used previously, which was sampling the bgFile in 16-px
+-- chunks across the whole panel and dropped FPS during scroll.
 MoP_GM.backdrops = {
     panel = {
         bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
+        tile = false, edgeSize = 16,
         insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    },
-    inset = {
-        bgFile   = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true, tileSize = 16, edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
     },
 }
 
@@ -36,30 +32,63 @@ function MoP_GM.CreateSectionHeader(parent, text)
     return header
 end
 
--- ─── Tooltip helpers ───────────────────────────────────────────────────────
-local function previewLine(def, getValues)
-    local values = getValues and getValues() or {}
-    local line, err = MoP_GM.BuildLine(def, values)
-    if line then return line end
-    return def.format .. (err and ("  |cffaaaaaa(" .. err .. ")|r") or "")
-end
 
-function MoP_GM.AttachTooltip(widget, def, getValues)
-    widget:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(def.label or def.id or "(command)", 1, 0.82, 0)
-        if def.tooltip then
-            GameTooltip:AddLine(def.tooltip, 1, 1, 1, true)
+-- ─── Lightweight widget factories ─────────────────────────────────────────
+-- The Blizzard templates UIPanelButtonTemplate and InputBoxTemplate each carry
+-- 5–9 background/edge/highlight textures, so a tab with ~30 rows × 3 widgets
+-- ends up redrawing several hundred textures every frame during scroll. That
+-- was the real FPS culprit. These factories use a single solid-color bg
+-- texture per widget and nothing else.
+
+function MoP_GM.MakeFlatButton(parent, w, h, text, isDanger)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(w, h)
+
+    local bg = b:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(b)
+    bg:SetTexture(0.18, 0.18, 0.22, 0.9)
+
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints(b)
+    hl:SetTexture(1, 1, 1, 0.18)
+
+    local fs = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    fs:SetPoint("CENTER", b, "CENTER", 0, 0)
+    fs:SetText(text)
+    if isDanger then fs:SetTextColor(1, 0.45, 0.45) end
+    b:SetFontString(fs)
+    b.label = fs
+    return b
+end
+local makeFlatButton = MoP_GM.MakeFlatButton
+
+local function makeFlatEditBox(parent, w, h, placeholder, isNumeric)
+    local e = CreateFrame("EditBox", nil, parent)
+    e:SetSize(w, h)
+    e:SetFontObject(GameFontHighlightSmall)
+    e:SetTextColor(1, 1, 1, 1)
+    e:SetTextInsets(6, 6, 0, 0)
+    e:SetAutoFocus(false)
+    e:SetMaxLetters(isNumeric and 12 or 64)
+
+    local bg = e:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints(e)
+    bg:SetTexture(0, 0, 0, 0.55)
+
+    if placeholder then
+        local hint = e:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+        hint:SetPoint("LEFT", e, "LEFT", 6, 0)
+        hint:SetText(placeholder)
+        e.hint = hint
+        local function refreshHint()
+            if e:GetText() == "" and not e:HasFocus() then hint:Show() else hint:Hide() end
         end
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(previewLine(def, getValues), 0.4, 1, 0.4, true)
-        if def.danger then
-            GameTooltip:AddLine("Destructive — confirmation required.", 1, 0.3, 0.3)
-        end
-        GameTooltip:AddLine("Right-click: " .. (MoP_GM.IsFavorite(def) and "unpin from Favorites" or "pin to Favorites"), 0.7, 0.7, 0.7)
-        GameTooltip:Show()
-    end)
-    widget:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        e.refreshHint = refreshHint
+        e:HookScript("OnTextChanged", refreshHint)
+        e:HookScript("OnEditFocusGained", refreshHint)
+        e:HookScript("OnEditFocusLost", refreshHint)
+    end
+    return e
 end
 
 -- ─── Single command row ────────────────────────────────────────────────────
@@ -72,60 +101,38 @@ function MoP_GM.CreateCommandRow(parent, def)
 
     local rowKey = (def.group or "?") .. ":" .. (def.id or def.label or "?")
 
-    -- The clickable label-button.
-    local btn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    btn:SetSize(LABEL_WIDTH, ROW_HEIGHT - 2)
+    -- Label-action button (left-click runs, right-click toggles favorite).
+    local btn = makeFlatButton(row, LABEL_WIDTH, ROW_HEIGHT - 2, def.label or def.id, def.danger)
     btn:SetPoint("LEFT", row, "LEFT", 0, 0)
-    btn:SetText(def.label or def.id)
-    if def.danger then
-        local fs = btn:GetFontString()
-        if fs then fs:SetTextColor(1, 0.45, 0.45) end
-    end
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row.button = btn
-    row:RegisterForClicks("AnyUp")
+
+    -- Forward declarations so the input boxes can call execute() on Enter.
+    local execute, gatherValues
 
     -- Build the input boxes for each arg.
     row.edits = {}
     local prev = btn
     for i, arg in ipairs(def.args or {}) do
-        local edit = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
-        edit:SetSize(INPUT_WIDTH, ROW_HEIGHT - 2)
-        edit:SetPoint("LEFT", prev, "RIGHT", 12, 0)
-        edit:SetAutoFocus(false)
-        edit:SetMaxLetters(arg.numeric and 12 or 64)
-        edit:SetNumeric(false) -- we coerce manually so error message can be friendly
-        if arg.placeholder then
-            -- 5.4.8 has no built-in placeholder; mimic with an OVERLAY string.
-            local hint = edit:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-            hint:SetPoint("LEFT", edit, "LEFT", 4, 0)
-            hint:SetText(arg.placeholder)
-            edit.hint = hint
-            edit:HookScript("OnTextChanged", function(self)
-                if self:GetText() == "" then self.hint:Show() else self.hint:Hide() end
-            end)
-            edit:HookScript("OnEditFocusGained", function(self) self.hint:Hide() end)
-            edit:HookScript("OnEditFocusLost", function(self)
-                if self:GetText() == "" then self.hint:Show() end
-            end)
-        end
+        local edit = makeFlatEditBox(row, INPUT_WIDTH, ROW_HEIGHT - 2, arg.placeholder, arg.numeric)
+        edit:SetPoint("LEFT", prev, "RIGHT", 8, 0)
         edit:HookScript("OnTextChanged", function(self)
             MoP_GM.SetInputCache(rowKey, arg.key, self:GetText())
         end)
+        edit:SetScript("OnEnterPressed", function(self)
+            self:ClearFocus()
+            execute()
+        end)
+        edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
         local cached = MoP_GM.GetInputCache(rowKey, arg.key)
-        if cached then edit:SetText(cached) end
+        if cached and cached ~= "" then edit:SetText(cached) end
+        if edit.refreshHint then edit.refreshHint() end
         edit.argDef = arg
         row.edits[arg.key] = edit
         prev = edit
     end
 
-    -- Run button at the right edge.
-    local run = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-    run:SetSize(RUN_WIDTH, ROW_HEIGHT - 2)
-    run:SetPoint("LEFT", prev, "RIGHT", 12, 0)
-    run:SetText("Run")
-    row.run = run
-
-    local function gatherValues()
+    gatherValues = function()
         local v = {}
         for _, arg in ipairs(def.args or {}) do
             local edit = row.edits[arg.key]
@@ -134,7 +141,7 @@ function MoP_GM.CreateCommandRow(parent, def)
         return v
     end
 
-    local function execute()
+    execute = function()
         local line, err = MoP_GM.BuildLine(def, gatherValues())
         if not line then
             MoP_GM.Print(MoP_GM.colors.warn .. (err or "invalid args") .. MoP_GM.colors.reset)
@@ -143,21 +150,14 @@ function MoP_GM.CreateCommandRow(parent, def)
         MoP_GM.RunCommand(line, { danger = def.danger })
     end
 
+    -- Left-click → run; right-click → toggle Favorite.
     btn:SetScript("OnClick", function(_, mouseButton)
         if mouseButton == "RightButton" then
             MoP_GM.ToggleFavorite(def)
-            return
+        else
+            execute()
         end
-        execute()
     end)
-    run:SetScript("OnClick", execute)
-
-    -- Right-click on the run button or any edit also pins (parity with label).
-    run:RegisterForClicks("AnyUp")
-    run:HookScript("OnClick", function(_, mb) if mb == "RightButton" then MoP_GM.ToggleFavorite(def) end end)
-
-    MoP_GM.AttachTooltip(btn, def, gatherValues)
-    MoP_GM.AttachTooltip(run, def, gatherValues)
 
     return row
 end
@@ -170,7 +170,7 @@ function MoP_GM.LayoutRows(parent, defs, opts)
     local yTop = opts.yTop or 8
     local sectionTitle = opts.sectionTitle
     local rowsPerColumn = opts.rowsPerColumn -- if set, lay out in columns
-    local columnWidth = opts.columnWidth or 520
+    local columnWidth = opts.columnWidth or 800
 
     local y = -yTop
     if sectionTitle then
@@ -197,65 +197,73 @@ function MoP_GM.LayoutRows(parent, defs, opts)
     return -y + 8
 end
 
--- ─── Free-text command box ─────────────────────────────────────────────────
-function MoP_GM.CreateFreeTextBar(parent)
-    local bar = CreateFrame("Frame", nil, parent)
-    bar:SetHeight(28)
+-- ─── Sub-tabs ─────────────────────────────────────────────────────────────
+-- Build a horizontal sub-tab strip with one content frame per sub-tab. Only
+-- the active sub-tab's content is shown, so the total widget count visible
+-- stays small and scrolling becomes unnecessary.
+--
+-- subTabsDef = { { label, rows, builder, layoutOpts }, ... }
+-- Each sub-tab provides EITHER `rows` (a list of command defs to lay out) OR
+-- `builder` (a function(parent) that builds custom content).
+function MoP_GM.BuildSubTabs(parent, subTabsDef, dbKey)
+    local strip = CreateFrame("Frame", nil, parent)
+    strip:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -4)
+    strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -4, -4)
+    strip:SetHeight(20)
 
-    local edit = CreateFrame("EditBox", nil, bar, "InputBoxTemplate")
-    edit:SetHeight(22)
-    edit:SetPoint("LEFT", bar, "LEFT", 8, 0)
-    edit:SetPoint("RIGHT", bar, "RIGHT", -68, 0)
-    edit:SetAutoFocus(false)
-    edit:SetMaxLetters(255)
+    local subContent = CreateFrame("Frame", nil, parent)
+    subContent:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", 0, -4)
+    subContent:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -4, 4)
 
-    local hint = edit:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    hint:SetPoint("LEFT", edit, "LEFT", 6, 0)
-    hint:SetText("Type any .command and press Enter (↑/↓ for history)")
-    edit.hint = hint
-    edit:HookScript("OnTextChanged", function(self)
-        if self:GetText() == "" then self.hint:Show() else self.hint:Hide() end
-    end)
-    edit:HookScript("OnEditFocusGained", function(self) self.hint:Hide() end)
-    edit:HookScript("OnEditFocusLost", function(self) if self:GetText() == "" then self.hint:Show() end end)
-
-    local send = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
-    send:SetSize(56, 22)
-    send:SetPoint("LEFT", edit, "RIGHT", 8, 0)
-    send:SetText("Send")
-
-    local historyIndex = 0
-    local function submit()
-        local text = MoP_GM.Trim(edit:GetText())
-        if text == "" then return end
-        if not text:match("^[%./]") then text = "." .. text end
-        MoP_GM._ExecuteRaw(text)
-        edit:SetText("")
-        historyIndex = 0
+    local entries = {}
+    local function selectSub(idx)
+        for i, e in ipairs(entries) do
+            if i == idx then
+                e.button.label:SetTextColor(1, 1, 0.3)
+                e.contentFrame:Show()
+            else
+                e.button.label:SetTextColor(0.85, 0.85, 0.85)
+                e.contentFrame:Hide()
+            end
+        end
+        if dbKey and MoP_GM.db then MoP_GM.db[dbKey] = idx end
     end
-    edit:SetScript("OnEnterPressed", submit)
-    send:SetScript("OnClick", submit)
-    edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    edit:SetScript("OnArrowPressed", function(self, key)
-        local hist = MoP_GM.GetHistory()
-        if not hist or #hist == 0 then return end
-        if key == "UP" then
-            historyIndex = math.min(historyIndex + 1, #hist)
-        elseif key == "DOWN" then
-            historyIndex = math.max(historyIndex - 1, 0)
-        end
-        if historyIndex == 0 then
-            self:SetText("")
-        else
-            self:SetText(hist[historyIndex] or "")
-        end
-        self:HighlightText(0, 0)
-        self:SetCursorPosition(self:GetText():len())
-    end)
 
-    bar.edit = edit
-    bar.send = send
-    return bar
+    local sizer = strip:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local prev
+    for i, def in ipairs(subTabsDef) do
+        sizer:SetText(def.label)
+        local w = math.max(50, math.ceil(sizer:GetStringWidth()) + 14)
+        local btn = makeFlatButton(strip, w, 20, def.label, false)
+        if prev then
+            btn:SetPoint("LEFT", prev, "RIGHT", 4, 0)
+        else
+            btn:SetPoint("LEFT", strip, "LEFT", 0, 0)
+        end
+        prev = btn
+
+        local content = CreateFrame("Frame", nil, subContent)
+        content:SetAllPoints(subContent)
+        content:Hide()
+
+        if def.rows then
+            MoP_GM.LayoutRows(content, def.rows, def.layoutOpts or {})
+        end
+        if def.builder then
+            local ok, err = pcall(def.builder, content)
+            if not ok then
+                DEFAULT_CHAT_FRAME:AddMessage("|cffff5555MoP_GM sub-tab '" .. tostring(def.label) .. "' build error:|r " .. tostring(err))
+            end
+        end
+
+        btn:SetScript("OnClick", function() selectSub(i) end)
+        table.insert(entries, { button = btn, contentFrame = content })
+    end
+    sizer:Hide()
+
+    local saved = dbKey and MoP_GM.db and MoP_GM.db[dbKey] or 1
+    if not entries[saved] then saved = 1 end
+    selectSub(saved)
 end
 
 -- ─── Generic scroll content holder ────────────────────────────────────────
@@ -263,6 +271,20 @@ function MoP_GM.CreateScrollContent(parent)
     local scroll = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", parent, "TOPLEFT", 4, -4)
     scroll:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -28, 4)
+
+    -- UIPanelScrollFrameTemplate ships with a scrollbar but no mouse-wheel
+    -- handling; wire it up so users can scroll the rows naturally.
+    scroll:EnableMouseWheel(true)
+    scroll:SetScript("OnMouseWheel", function(self, delta)
+        local current = self:GetVerticalScroll()
+        local maxScroll = self:GetVerticalScrollRange()
+        local step = ROW_HEIGHT * 2
+        local target = current - delta * step
+        if target < 0 then target = 0 end
+        if target > maxScroll then target = maxScroll end
+        self:SetVerticalScroll(target)
+    end)
+
     local content = CreateFrame("Frame", nil, scroll)
     content:SetSize(820, 400)
     scroll:SetScrollChild(content)

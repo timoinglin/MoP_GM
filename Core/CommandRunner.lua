@@ -1,24 +1,13 @@
 -- MoP_GM/Core/CommandRunner.lua
 -- Single chokepoint for sending dot-commands to the server.
 
--- Send raw text exactly as if the user typed it into the chat edit box.
--- Going through the chat edit box is the most reliable way to deliver server
--- dot-commands on Trinity-based cores; SendChatMessage(".x", "SAY") is parsed
--- client-side and is rejected on many forks.
+-- Send a dot-command to the server. Trinity-derived cores (Emucoach included)
+-- intercept dot-prefixed messages on the server side before they're broadcast
+-- as normal chat, so SendChatMessage("SAY") delivers the command silently —
+-- no public SAY appears in chat, only the server's response to the command.
 function MoP_GM._ExecuteRaw(line)
     if MoP_GM.IsBlank(line) then return end
-    local edit = ChatEdit_ChooseBoxForSend and ChatEdit_ChooseBoxForSend() or DEFAULT_CHAT_FRAME.editBox
-    if not edit then
-        MoP_GM.Print("could not locate chat edit box")
-        return
-    end
-    if ChatEdit_ActivateChat then ChatEdit_ActivateChat(edit) end
-    edit:SetText(line)
-    if ChatEdit_SendText then
-        ChatEdit_SendText(edit, false)
-    else
-        edit:GetScript("OnEnterPressed")(edit)
-    end
+    SendChatMessage(line, "SAY")
     MoP_GM.PushHistory(line)
 end
 

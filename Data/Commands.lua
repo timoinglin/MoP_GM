@@ -7,6 +7,10 @@
 -- `format` is fed to string.format with one %s per arg (in declaration order).
 -- `danger=true` triggers a confirm dialog before sending.
 -- `fallback="target"` lets a blank field fall back to UnitName("target").
+--
+-- Commands are split into sub-groups (e.g. PlayerTarget, PlayerModify) so that
+-- each tab's content is short enough to fit on screen without scrolling. Tabs
+-- with too many commands compose multiple sub-groups via sub-tabs.
 
 MoP_GM.Commands = {}
 local C = MoP_GM.Commands
@@ -16,8 +20,8 @@ local function nameArg(opts)
     return { key = "name", placeholder = opts.placeholder or "player", fallback = "target", optional = opts.optional }
 end
 
--- ─── General / GM toggles ──────────────────────────────────────────────────
-C.General = {
+-- ─── General → Toggles (10) ────────────────────────────────────────────────
+C.GeneralToggles = {
     { id="gmon",      label=".gm on",           format=".gm on",          tooltip="Enter GM mode (invisible to non-GMs)." },
     { id="gmoff",     label=".gm off",          format=".gm off",         tooltip="Leave GM mode." },
     { id="gmflyon",   label=".gm fly on",       format=".gm fly on",      tooltip="Toggle flying anywhere on." },
@@ -26,17 +30,19 @@ C.General = {
     { id="gmingame",  label=".gm ingame",       format=".gm ingame",      tooltip="List online GMs." },
     { id="gps",       label=".gps",             format=".gps",            tooltip="Print current map / x / y / z." },
     { id="commands",  label=".commands",        format=".commands",       tooltip="Print server-supported commands." },
-    { id="taxicheat", label=".taxicheat on",    format=".taxicheat on",   tooltip="Reveal all flight masters." },
-    { id="taxicheato",label=".taxicheat off",   format=".taxicheat off",  tooltip="Hide all flight masters again." },
+    { id="taxicheaton",label=".taxicheat on",   format=".taxicheat on",   tooltip="Reveal all flight masters." },
+    { id="taxicheatoff",label=".taxicheat off", format=".taxicheat off",  tooltip="Hide all flight masters again." },
+    { id="cheatstat", label="cheat status",     format=".cheat status",   tooltip="Print active cheats." },
+}
 
+-- ─── General → Cheats & Modify Self (14) ──────────────────────────────────
+C.GeneralCheats = {
     { id="cheatgod",  label="cheat god",        format=".cheat god %s",   args={{key="state",placeholder="on/off"}}, tooltip="Toggle invulnerability." },
     { id="cheatpwr",  label="cheat power",      format=".cheat power %s", args={{key="state",placeholder="on/off"}}, tooltip="Infinite mana/rage/energy." },
     { id="cheatcd",   label="cheat cooldown",   format=".cheat cooldown %s",args={{key="state",placeholder="on/off"}}, tooltip="No cooldowns." },
     { id="cheatct",   label="cheat casttime",   format=".cheat casttime %s",args={{key="state",placeholder="on/off"}}, tooltip="Instant casts." },
     { id="cheatww",   label="cheat waterwalk",  format=".cheat waterwalk %s",args={{key="state",placeholder="on/off"}}, tooltip="Walk on water." },
     { id="cheatexp",  label="cheat explore",    format=".cheat explore %s",args={{key="state",placeholder="on/off"}}, tooltip="Reveal map." },
-    { id="cheatstat", label="cheat status",     format=".cheat status",   tooltip="Print active cheats." },
-
     { id="morph",     label="morph",            format=".morph %s",       args={{key="displayid",placeholder="displayId",numeric=true}}, tooltip="Change model." },
     { id="demorph",   label="demorph",          format=".demorph",        tooltip="Revert to default model." },
     { id="mount",     label="mount",            format=".mount %s",       args={{key="mountid",placeholder="mountId",numeric=true}}, tooltip="Mount creature display id." },
@@ -47,8 +53,8 @@ C.General = {
     { id="modfly",    label="modify fly",       format=".modify fly %s",  args={{key="rate",placeholder="0.1-50",numeric=true}}, tooltip="Flight speed multiplier." },
 }
 
--- ─── Player ────────────────────────────────────────────────────────────────
-C.Player = {
+-- ─── Player → Target / state (9) ──────────────────────────────────────────
+C.PlayerTarget = {
     { id="appear",   label="appear",   format=".appear %s",  args={ nameArg() }, tooltip="Teleport to player." },
     { id="summon",   label="summon",   format=".summon %s",  args={ nameArg() }, tooltip="Summon player to you." },
     { id="recall",   label="recall",   format=".recall %s",  args={ nameArg{ optional=true } }, tooltip="Teleport player back to recall position." },
@@ -58,7 +64,10 @@ C.Player = {
     { id="freeze",   label="freeze",   format=".freeze %s",  args={ nameArg{ optional=true } }, tooltip="Freeze player in place." },
     { id="unfreeze", label="unfreeze", format=".unfreeze %s",args={ nameArg{ optional=true } }, tooltip="Unfreeze player." },
     { id="playerinfo",label="playerinfo",format=".pinfo",    tooltip="Detailed info on selected player." },
+}
 
+-- ─── Player → Modify (12) ─────────────────────────────────────────────────
+C.PlayerModify = {
     { id="modlevel", label="modify level", format=".modify level %s", args={{key="level",placeholder="1-90",numeric=true}}, tooltip="Set target level." },
     { id="modxp",    label="modify xp",    format=".modify xp %s",    args={{key="xp",placeholder="amount",numeric=true}}, tooltip="Set target XP." },
     { id="modmoney", label="modify money", format=".modify money %s", args={{key="copper",placeholder="copper",numeric=true}}, tooltip="Add copper to target." },
@@ -71,7 +80,10 @@ C.Player = {
     { id="modphase", label="modify phase", format=".modify phase %s", args={{key="mask",placeholder="phaseMask",numeric=true}} },
     { id="modgender",label="modify gender",format=".modify gender %s",args={{key="gender",placeholder="0=M 1=F",numeric=true}} },
     { id="modrep",   label="modify rep",   format=".modify reputation %s %s",args={{key="faction",placeholder="factionId",numeric=true},{key="value",placeholder="value",numeric=true}} },
+}
 
+-- ─── Player → Spells / abilities (11) ─────────────────────────────────────
+C.PlayerSpells = {
     { id="learn",    label="learn",        format=".learn %s",        args={{key="spellid",placeholder="spellId",numeric=true}}, tooltip="Teach a spell." },
     { id="learnclass",label="learn all my class",format=".learn all my class", tooltip="Teach all spells of my class." },
     { id="learnrec", label="learn all recipes",  format=".learn all recipes", tooltip="Teach every profession recipe." },
@@ -81,29 +93,29 @@ C.Player = {
     { id="aura",     label="aura",         format=".aura %s",         args={{key="spellid",placeholder="spellId",numeric=true}} },
     { id="unaura",   label="unaura",       format=".unaura %s",       args={{key="spellid",placeholder="spellId",numeric=true}} },
     { id="cdall",    label="cooldown all", format=".cooldown",        tooltip="Clear all cooldowns on target." },
+    { id="maxskill", label="maxskill",     format=".maxskill" },
+    { id="setskill", label="setskill",     format=".setskill %s %s %s",args={{key="skill",placeholder="skillId",numeric=true},{key="value",placeholder="value",numeric=true},{key="max",placeholder="max",numeric=true,optional=true}} },
+}
 
+-- ─── Player → Reset / character (14) ──────────────────────────────────────
+C.PlayerReset = {
     { id="rsttalents",label="reset talents",format=".reset talents %s",args={ nameArg{ optional=true } }, danger=true },
     { id="rstspells",label="reset spells", format=".reset spells %s", args={ nameArg{ optional=true } }, danger=true },
     { id="rstskills",label="reset skills", format=".reset skills",    tooltip="Reset target's skills.", danger=true },
     { id="rstall",   label="reset all",    format=".reset all %s",    args={{key="kind",placeholder="talents/spells/stats"}}, danger=true },
     { id="rststats", label="reset stats",  format=".reset stats",     danger=true },
     { id="rstlevel", label="reset level",  format=".reset level %s",  args={ nameArg{ optional=true } }, danger=true },
-
-    { id="maxskill", label="maxskill",     format=".maxskill" },
-    { id="setskill", label="setskill",     format=".setskill %s %s %s",args={{key="skill",placeholder="skillId",numeric=true},{key="value",placeholder="value",numeric=true},{key="max",placeholder="max",numeric=true,optional=true}} },
-
     { id="charrename", label="character rename",   format=".character rename %s",  args={ nameArg() } },
     { id="charcust",   label="character customize",format=".character customize %s",args={ nameArg() } },
     { id="charcrace",  label="changerace",         format=".character changerace %s",args={ nameArg() } },
     { id="charcfac",   label="changefaction",      format=".character changefaction %s",args={ nameArg() } },
-
     { id="unstuck",  label="unstuck",      format=".unstuck %s",      args={ nameArg{ optional=true } } },
     { id="bindsight",label="bindsight",    format=".bindsight" },
     { id="unbindsight",label="unbindsight",format=".unbindsight" },
     { id="hover",    label="hover",        format=".hover %s",        args={{key="state",placeholder="0/1",numeric=true}} },
 }
 
--- ─── Items ─────────────────────────────────────────────────────────────────
+-- ─── Items (13) ───────────────────────────────────────────────────────────
 C.Items = {
     { id="additem",  label="additem",   format=".additem %s %s", args={{key="id",placeholder="itemId",numeric=true},{key="count",placeholder="count",numeric=true,optional=true,default="1"}}, tooltip="Add item to your bags." },
     { id="addset",   label="additemset",format=".additemset %s", args={{key="setid",placeholder="setId",numeric=true}}, tooltip="Add an entire item set." },
@@ -120,8 +132,8 @@ C.Items = {
     { id="ah",       label="ah",         format=".ahbot" },
 }
 
--- ─── NPC ───────────────────────────────────────────────────────────────────
-C.NPC = {
+-- ─── NPC → Spawn / movement / chat (14) ───────────────────────────────────
+C.NPCSpawn = {
     { id="npcadd",   label="npc add",     format=".npc add %s",     args={{key="entry",placeholder="creatureId",numeric=true}} },
     { id="npcaddtmp",label="npc add temp",format=".npc add temp %s",args={{key="entry",placeholder="creatureId",numeric=true}} },
     { id="npcdel",   label="npc delete",  format=".npc delete",     danger=true },
@@ -136,7 +148,10 @@ C.NPC = {
     { id="npccome",  label="npc come",    format=".npc come" },
     { id="npcposs",  label="npc possess", format=".possess" },
     { id="npcunposs",label="npc unposs",  format=".unpossess" },
+}
 
+-- ─── NPC → Modify / lookup (12) ───────────────────────────────────────────
+C.NPCModify = {
     { id="npcsetlvl",label="npc set level",  format=".npc set level %s",   args={{key="level",placeholder="1-90",numeric=true}} },
     { id="npcsetfac",label="npc set faction",format=".npc set faction %s", args={{key="faction",placeholder="factionId",numeric=true}} },
     { id="npcsetmod",label="npc set model",  format=".npc set model %s",   args={{key="modelid",placeholder="modelId",numeric=true}} },
@@ -144,7 +159,6 @@ C.NPC = {
     { id="npcsetent",label="npc set entry",  format=".npc set entry %s",   args={{key="entry",placeholder="creatureId",numeric=true}} },
     { id="npcsetphs",label="npc set phase",  format=".npc set phase %s",   args={{key="phase",placeholder="phaseMask",numeric=true}} },
     { id="npcsetfly",label="npc set fly",    format=".npc set flag %s",    args={{key="flag",placeholder="flagBits",numeric=true}} },
-
     { id="lookcreat",label="lookup creature", format=".lookup creature %s", args={{key="text",placeholder="search"}} },
     { id="respawn",  label="respawn",          format=".respawn" },
     { id="repopall", label="repopall",         format=".repopall" },
@@ -152,7 +166,7 @@ C.NPC = {
     { id="damage",   label="damage",           format=".damage %s",      args={{key="amount",placeholder="amount",numeric=true}} },
 }
 
--- ─── GameObject ────────────────────────────────────────────────────────────
+-- ─── GameObject (9) ───────────────────────────────────────────────────────
 C.GameObject = {
     { id="goadd",   label="gobject add",   format=".gobject add %s %s", args={{key="entry",placeholder="objectId",numeric=true},{key="resp",placeholder="respawn",numeric=true,optional=true}} },
     { id="godel",   label="gobject delete",format=".gobject delete %s", args={{key="guid",placeholder="guid",numeric=true,optional=true}}, danger=true },
@@ -165,7 +179,22 @@ C.GameObject = {
     { id="lookobj", label="lookup object", format=".lookup object %s",  args={{key="text",placeholder="search"}} },
 }
 
--- ─── Quest ─────────────────────────────────────────────────────────────────
+-- ─── Teleport free-form commands (11) ─────────────────────────────────────
+C.TeleCommands = {
+    { id="tele",    label="tele",         format=".tele %s",        args={{key="name",placeholder="name"}}, tooltip="Teleport to a saved name." },
+    { id="goxyz",   label="go xyz",       format=".go xyz %s %s %s %s",args={{key="x",placeholder="x",numeric=true},{key="y",placeholder="y",numeric=true},{key="z",placeholder="z",numeric=true},{key="map",placeholder="map",numeric=true,optional=true}} },
+    { id="gocrtr",  label="go creature",  format=".go creature id %s",args={{key="entry",placeholder="creatureId",numeric=true}} },
+    { id="goobj",   label="go gobject",   format=".go gobject id %s",args={{key="entry",placeholder="objectId",numeric=true}} },
+    { id="gograve", label="go graveyard", format=".go graveyard %s", args={{key="id",placeholder="graveyardId",numeric=true}} },
+    { id="goquest", label="go quest",     format=".go quest %s",     args={{key="id",placeholder="questId",numeric=true}} },
+    { id="start",   label="start",        format=".start", tooltip="Teleport to starting location." },
+    { id="recallme",label="recall",       format=".recall" },
+    { id="wport",   label="worldport",    format=".worldport %s %s %s %s",args={{key="map",placeholder="map",numeric=true},{key="x",placeholder="x",numeric=true},{key="y",placeholder="y",numeric=true},{key="z",placeholder="z",numeric=true}} },
+    { id="appearx", label="appear",       format=".appear %s",       args={{key="name",placeholder="player",fallback="target"}} },
+    { id="summonx", label="summon",       format=".summon %s",       args={{key="name",placeholder="player",fallback="target"}} },
+}
+
+-- ─── Quest (5) ────────────────────────────────────────────────────────────
 C.Quest = {
     { id="qadd",    label="quest add",     format=".quest add %s",     args={{key="id",placeholder="questId",numeric=true}} },
     { id="qcomp",   label="quest complete",format=".quest complete %s",args={{key="id",placeholder="questId",numeric=true}} },
@@ -174,10 +203,9 @@ C.Quest = {
     { id="qlook",   label="lookup quest",  format=".lookup quest %s",  args={{key="text",placeholder="search"}} },
 }
 
--- ─── Server / Admin ────────────────────────────────────────────────────────
+-- ─── Server / Admin (11) ──────────────────────────────────────────────────
 C.Server = {
     { id="announce", label="announce",      format=".announce %s",   args={{key="msg",placeholder="message"}} },
-    { id="wann",     label="wide announce", format=".wannounce %s",  args={{key="msg",placeholder="message"}} },
     { id="srvinfo",  label="server info",   format=".server info" },
     { id="srvmotd",  label="server motd",   format=".server motd" },
     { id="setmotd",  label="set motd",      format=".server set motd %s",args={{key="msg",placeholder="message"}} },
@@ -189,7 +217,7 @@ C.Server = {
     { id="reload",   label="reload table",  format=".reload %s",     args={{key="table",placeholder="creature_template / quest_template / …"}} },
 }
 
--- ─── Moderation (all destructive → confirm) ───────────────────────────────
+-- ─── Moderation (10, all destructive) ─────────────────────────────────────
 C.Moderation = {
     { id="banacc",   label="ban account",  format=".ban account %s %s %s",args={ nameArg{placeholder="account"},{key="dur",placeholder="1d/perm"},{key="reason",placeholder="reason"} }, danger=true },
     { id="banchar",  label="ban character",format=".ban character %s %s %s",args={ nameArg(),{key="dur",placeholder="1d/perm"},{key="reason",placeholder="reason"} }, danger=true },
@@ -203,7 +231,7 @@ C.Moderation = {
     { id="warden",   label="warden check", format=".wardencheck" },
 }
 
--- ─── PlayerBot (.bot / .bots) ──────────────────────────────────────────────
+-- ─── PlayerBot (.bot / .bots) (9) ─────────────────────────────────────────
 C.PlayerBot = {
     { id="botadd",   label="bot add",       format=".bot add %s %s", args={{key="role",placeholder="1=heal 2=dps 3=tank",numeric=true},{key="qty",placeholder="qty",numeric=true,optional=true,default="1"}}, tooltip="Add bots to your group by role." },
     { id="botattack",label="bot attack",    format=".bot attack",    tooltip="Order bots to attack your target." },
@@ -216,7 +244,7 @@ C.PlayerBot = {
     { id="botremove",label="bot remove",    format=".bot remove %s", args={ nameArg{placeholder="bot name", optional=true} }, danger=true },
 }
 
--- ─── NpcBot (.npcbot) ─────────────────────────────────────────────────────
+-- ─── NpcBot (.npcbot) (9) ─────────────────────────────────────────────────
 C.NpcBot = {
     { id="nbhelp",   label="npcbot help",     format=".npcbot",        tooltip="List subcommands." },
     { id="nbadd",    label="npcbot add",      format=".npcbot add %s", args={{key="class",placeholder="warrior/mage/…"}} },

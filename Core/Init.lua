@@ -28,6 +28,13 @@ local function copyDefaults(src, dst)
     return dst
 end
 
+-- Login-handler registry. Each module appends a function via MoP_GM.AddLogin();
+-- on PLAYER_LOGIN we run each in sequence, wrapped in pcall so a runtime
+-- failure in one (e.g. buildAllTabs) doesn't break the others (e.g. the
+-- toggle button).
+MoP_GM._loginHandlers = {}
+function MoP_GM.AddLogin(fn) table.insert(MoP_GM._loginHandlers, fn) end
+
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGIN")
@@ -37,7 +44,12 @@ frame:SetScript("OnEvent", function(self, event, name)
         copyDefaults(MoP_GM.defaults, MoP_GM_DB)
         MoP_GM.db = MoP_GM_DB
     elseif event == "PLAYER_LOGIN" then
-        if MoP_GM.OnLogin then MoP_GM.OnLogin() end
+        for i, fn in ipairs(MoP_GM._loginHandlers or {}) do
+            local ok, err = pcall(fn)
+            if not ok then
+                DEFAULT_CHAT_FRAME:AddMessage("|cffff5555MoP_GM login handler #" .. i .. " error:|r " .. tostring(err))
+            end
+        end
     end
 end)
 
@@ -58,21 +70,30 @@ SlashCmdList["MOPGM"] = function(msg)
     elseif msg == "hide" then
         if MoP_GM_MainFrame then MoP_GM_MainFrame:Hide() end
     elseif msg == "debug" then
-        local f = MoP_GM_MainFrame
-        local b = MoP_GM_ToggleButton
+        -- Quick state dump: each module exports a sentinel symbol; if any
+        -- shows MISSING, that file failed to load (parse error or runtime).
         local function pp(label, val) DEFAULT_CHAT_FRAME:AddMessage("  " .. label .. ": " .. tostring(val)) end
         DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99MoP_GM debug|r")
-        pp("MoP_GM", MoP_GM and "table" or nil)
-        pp("MoP_GM.db", MoP_GM.db and "table" or nil)
-        pp("MoP_GM_DB", MoP_GM_DB and "table" or nil)
-        pp("MainFrame", f)
-        if f then
-            pp("  shown", f:IsShown()); pp("  size", f:GetWidth() .. "x" .. f:GetHeight())
-            local p, _, rp, x, y = f:GetPoint(); pp("  point", tostring(p) .. "/" .. tostring(rp) .. " " .. tostring(x) .. "," .. tostring(y))
+        pp("MainFrame", MoP_GM_MainFrame)
+        pp("ToggleButton", MoP_GM_ToggleButton)
+        pp("tabs registered", MoP_GM.tabs and #MoP_GM.tabs or 0)
+        if MoP_GM._mainFrameLoadError then pp("MainFrame load error", MoP_GM._mainFrameLoadError) end
+        DEFAULT_CHAT_FRAME:AddMessage("  modules:")
+        for _, c in ipairs({
+            { "Util",          MoP_GM.colors },
+            { "SavedVars",     MoP_GM.PushHistory },
+            { "CommandRunner", MoP_GM.RunCommand },
+            { "Commands",      MoP_GM.Commands },
+            { "Teleports",     MoP_GM.SeedTeleports },
+            { "ConfirmDialog", StaticPopupDialogs and StaticPopupDialogs["MOPGM_CONFIRM_CMD"] },
+            { "Widgets",       MoP_GM.ApplyBackdrop },
+            { "MainFrame",     MoP_GM.RegisterTab },
+            { "PlayerBot tab", MoP_GM.BuildPlayerBotPanel },
+            { "NpcBot tab",    MoP_GM.BuildNpcBotPanel },
+            { "ToggleButton",  MoP_GM.Toggle },
+        }) do
+            pp("    " .. c[1], c[2] and "ok" or "|cffff5555MISSING|r")
         end
-        pp("ToggleButton", b)
-        pp("tabs", MoP_GM.tabs and #MoP_GM.tabs or 0)
-        pp("Toggle()", MoP_GM.Toggle and "yes" or "MISSING")
     else
         if MoP_GM.Toggle then MoP_GM.Toggle()
         elseif MoP_GM_MainFrame then

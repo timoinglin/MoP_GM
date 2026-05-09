@@ -2,10 +2,6 @@
 MoP_GM.RegisterTab({
     id = "moderation", label = "Moderation",
     builder = function(parent)
-        local scroll, content = MoP_GM.CreateScrollContent(parent)
-        local h = MoP_GM.LayoutRows(content, MoP_GM.Commands.Moderation, {
-            sectionTitle = "Ban / unban / mute / kick (all confirmed)",
-        })
-        content:SetHeight(math.max(h, 400))
+        MoP_GM.LayoutRows(parent, MoP_GM.Commands.Moderation)
     end,
 })

@@ -2,10 +2,9 @@
 MoP_GM.RegisterTab({
     id = "npc", label = "NPC",
     builder = function(parent)
-        local scroll, content = MoP_GM.CreateScrollContent(parent)
-        local h = MoP_GM.LayoutRows(content, MoP_GM.Commands.NPC, {
-            sectionTitle = "Spawn, modify, lookup creatures",
-        })
-        content:SetHeight(math.max(h, 400))
+        MoP_GM.BuildSubTabs(parent, {
+            { label = "Spawn / Move", rows = MoP_GM.Commands.NPCSpawn  },
+            { label = "Modify / Lookup", rows = MoP_GM.Commands.NPCModify },
+        }, "subTab_npc")
     end,
 })

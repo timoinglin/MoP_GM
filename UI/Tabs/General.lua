@@ -2,10 +2,9 @@
 MoP_GM.RegisterTab({
     id = "general", label = "General",
     builder = function(parent)
-        local scroll, content = MoP_GM.CreateScrollContent(parent)
-        local h = MoP_GM.LayoutRows(content, MoP_GM.Commands.General, {
-            sectionTitle = "GM toggles, cheats, modify",
-        })
-        content:SetHeight(math.max(h, 400))
+        MoP_GM.BuildSubTabs(parent, {
+            { label = "Toggles",         rows = MoP_GM.Commands.GeneralToggles },
+            { label = "Cheats & Modify", rows = MoP_GM.Commands.GeneralCheats  },
+        }, "subTab_general")
     end,
 })
