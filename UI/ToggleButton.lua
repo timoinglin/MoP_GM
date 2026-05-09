@@ -1,26 +1,42 @@
 -- MoP_GM/UI/ToggleButton.lua
 -- Minimap-anchored launcher button. Click → toggle MainFrame.
--- SHIFT+click and drag → reposition; position persisted in MoP_GM_DB.button.
+-- SHIFT-drag → reposition; position persisted in MoP_GM_DB.button.
 
 local SIZE = 32
+
+-- Single toggle path used by both the launcher button and the slash command.
+function MoP_GM.Toggle()
+    if not MoP_GM_MainFrame then
+        MoP_GM.Print("|cffff5555main frame not created — addon may have failed to load. Run /mopgm debug.|r")
+        return
+    end
+    if MoP_GM_MainFrame:IsShown() then
+        MoP_GM_MainFrame:Hide()
+    else
+        MoP_GM_MainFrame:Show()
+        MoP_GM_MainFrame:Raise()
+    end
+end
 
 local function createToggleButton()
     local b = CreateFrame("Button", "MoP_GM_ToggleButton", UIParent)
     b:SetSize(SIZE, SIZE)
     b:SetFrameStrata("MEDIUM")
+    b:SetFrameLevel(8)
     b:SetMovable(true)
     b:SetClampedToScreen(true)
     b:EnableMouse(true)
-    b:RegisterForClicks("AnyUp")
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:RegisterForDrag("LeftButton")
 
-    -- Icon (use a dependable Blizzard icon path; falls back gracefully).
+    -- Icon
     local icon = b:CreateTexture(nil, "BACKGROUND")
     icon:SetTexture("Interface\\Icons\\INV_Misc_Gear_03")
     icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
     icon:SetPoint("TOPLEFT", b, "TOPLEFT", 3, -3)
     icon:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -3, 3)
 
-    -- Border ring like a Blizzard minimap button.
+    -- Decorative border ring.
     local border = b:CreateTexture(nil, "OVERLAY")
     border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     border:SetSize(54, 54)
@@ -28,14 +44,15 @@ local function createToggleButton()
 
     b:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight", "ADD")
 
-    -- Drag only while SHIFT is held.
-    b:SetScript("OnMouseDown", function(self, button)
-        if button == "LeftButton" and IsShiftKeyDown() then
+    -- Drag pattern: OnDragStart only fires after the cursor moves a few px,
+    -- so a quick click never enters drag mode. Require SHIFT to actually drag.
+    b:SetScript("OnDragStart", function(self)
+        if IsShiftKeyDown() then
             self:StartMoving()
             self.isMoving = true
         end
     end)
-    b:SetScript("OnMouseUp", function(self)
+    b:SetScript("OnDragStop", function(self)
         if self.isMoving then
             self:StopMovingOrSizing()
             self.isMoving = false
@@ -43,19 +60,9 @@ local function createToggleButton()
         end
     end)
 
+    -- Click: just toggle. OnDragStart already handled drag if cursor moved.
     b:SetScript("OnClick", function(self, button)
-        if self.isMoving then return end
-        if IsShiftKeyDown() then return end -- shift used for drag, ignore click
-        if button == "LeftButton" then
-            local f = MoP_GM_MainFrame
-            if not f then return end
-            if f:IsShown() then f:Hide() else f:Show() end
-        elseif button == "RightButton" then
-            -- Right-click also works as a quick toggle.
-            local f = MoP_GM_MainFrame
-            if not f then return end
-            if f:IsShown() then f:Hide() else f:Show() end
-        end
+        MoP_GM.Toggle()
     end)
 
     b:SetScript("OnEnter", function(self)
@@ -68,6 +75,7 @@ local function createToggleButton()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+    b:Show()
     return b
 end
 

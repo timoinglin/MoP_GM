@@ -57,8 +57,25 @@ SlashCmdList["MOPGM"] = function(msg)
         if MoP_GM_MainFrame then MoP_GM_MainFrame:Show() end
     elseif msg == "hide" then
         if MoP_GM_MainFrame then MoP_GM_MainFrame:Hide() end
+    elseif msg == "debug" then
+        local f = MoP_GM_MainFrame
+        local b = MoP_GM_ToggleButton
+        local function pp(label, val) DEFAULT_CHAT_FRAME:AddMessage("  " .. label .. ": " .. tostring(val)) end
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99MoP_GM debug|r")
+        pp("MoP_GM", MoP_GM and "table" or nil)
+        pp("MoP_GM.db", MoP_GM.db and "table" or nil)
+        pp("MoP_GM_DB", MoP_GM_DB and "table" or nil)
+        pp("MainFrame", f)
+        if f then
+            pp("  shown", f:IsShown()); pp("  size", f:GetWidth() .. "x" .. f:GetHeight())
+            local p, _, rp, x, y = f:GetPoint(); pp("  point", tostring(p) .. "/" .. tostring(rp) .. " " .. tostring(x) .. "," .. tostring(y))
+        end
+        pp("ToggleButton", b)
+        pp("tabs", MoP_GM.tabs and #MoP_GM.tabs or 0)
+        pp("Toggle()", MoP_GM.Toggle and "yes" or "MISSING")
     else
-        if MoP_GM_MainFrame then
+        if MoP_GM.Toggle then MoP_GM.Toggle()
+        elseif MoP_GM_MainFrame then
             if MoP_GM_MainFrame:IsShown() then MoP_GM_MainFrame:Hide() else MoP_GM_MainFrame:Show() end
         end
     end
