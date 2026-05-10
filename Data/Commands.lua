@@ -325,11 +325,13 @@ C.ServerStatus = {
 
 -- ─── Server / Lifecycle (shutdown / restart) ──────────────────────────────
 C.ServerLifecycle = {
-    -- Syntax confirmed live: `.server shutdown #delay [#exit_code] [reason]`.
-    -- Exit code is the middle arg, NOT the reason. Default is 0 (shutdown) / 2 (restart).
-    { id="srvshut",         label="server shutdown",       format=".server shutdown %s %s %s",args={{key="seconds",placeholder="seconds",numeric=true},{key="exit",placeholder="exit code",numeric=true,optional=true,default="0"},{key="reason",placeholder="reason",optional=true}}, danger=true },
-    { id="srvshutcancel",   label="shutdown cancel",       format=".server shutdown cancel",  tooltip="Cancel a pending shutdown." },
-    { id="srvrestart",      label="server restart",        format=".server restart %s %s %s", args={{key="seconds",placeholder="seconds",numeric=true},{key="exit",placeholder="exit code",numeric=true,optional=true,default="2"},{key="reason",placeholder="reason",optional=true}}, danger=true },
+    -- Syntax: `.server shutdown #delay [#exit_code] [reason]`. Exit code is
+    -- the middle arg (NOT the reason). Although the help suggests 0 is valid,
+    -- on Emucoach 7.1 exit_code 0 fails — 1 works. We hardcode 1 so GMs only
+    -- need to fill in seconds + reason.
+    { id="srvshut",         label="server shutdown",       format=".server shutdown %s 1 %s",args={{key="seconds",placeholder="seconds",numeric=true},{key="reason",placeholder="reason",optional=true}}, danger=true },
+    { id="srvshutcancel",   label="shutdown cancel",       format=".server shutdown cancel", tooltip="Cancel a pending shutdown." },
+    { id="srvrestart",      label="server restart",        format=".server restart %s 1 %s", args={{key="seconds",placeholder="seconds",numeric=true},{key="reason",placeholder="reason",optional=true}}, danger=true },
     { id="srvrestartcancel",label="restart cancel",        format=".server restart cancel",   tooltip="Cancel a pending restart." },
     { id="srvidleshut",     label="idle shutdown",         format=".server idleshutdown %s",  args={{key="seconds",placeholder="seconds",numeric=true}}, tooltip="Shutdown when no players online for N seconds.", danger=true },
     { id="srvidleshutcan",  label="idle shutdown cancel",  format=".server idleshutdown cancel",tooltip="Cancel idle shutdown." },
