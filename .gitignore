@@ -6,6 +6,9 @@ starting_prompt.md
 MoP_GM.zip
 MoP_GM-*.zip
 
+# Local dev tooling (RA test scripts, ad-hoc test reports — may contain creds)
+tools/
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

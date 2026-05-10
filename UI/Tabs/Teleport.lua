@@ -1,17 +1,22 @@
 -- MoP_GM/UI/Tabs/Teleport.lua
--- Two sub-tabs:
---   1. Commands  — free-form .tele/.go entries + save/delete row.
---   2. Locations — clickable grid of seeded MoP locations + user-saved entries.
+-- Three sub-tabs:
+--   1. Tele       — `.tele` family + appear / summon + lookup tele + save row
+--   2. Go         — every `.go` form + lookup area / map / taxinode
+--   3. Locations  — clickable grid of seeded MoP locations + user-saved entries
+-- Note: `.tele del` is NOT a chat command on Emucoach 7.x — server-side tele
+-- names are managed via the world DB. We track user-saved names locally and
+-- offer an "untrack (local)" button instead, which only removes them from the
+-- addon's local list, not from the server.
 
 local TELE_BTN_W = 200
 local TELE_BTN_H = 22
 local TELE_COLS  = 4
 
-local function buildCommandsPanel(parent)
-    -- Free-form .tele / .go commands at the top.
-    MoP_GM.LayoutRows(parent, MoP_GM.Commands.TeleCommands)
+local function buildTelePanel(parent)
+    -- The tele/appear/summon/lookup family at the top.
+    MoP_GM.LayoutRows(parent, MoP_GM.Commands.TeleByName)
 
-    -- Save / delete a teleport name row (anchored to the bottom).
+    -- "Save current spot as:" row anchored at the bottom of the panel.
     local saveRow = CreateFrame("Frame", nil, parent)
     saveRow:SetHeight(28)
     saveRow:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 8, 6)
@@ -42,17 +47,28 @@ local function buildCommandsPanel(parent)
         table.insert(MoP_GM.db.userTeleports, { name = n, label = n })
     end)
 
-    local delBtn = MoP_GM.MakeFlatButton(saveRow, 90, 22, ".tele del", true)
+    local delBtn = MoP_GM.MakeFlatButton(saveRow, 110, 22, "untrack (local)", false)
     delBtn:SetPoint("LEFT", addBtn, "RIGHT", 4, 0)
     delBtn:SetScript("OnClick", function()
         local n = MoP_GM.Trim(edit:GetText() or "")
         if n == "" then MoP_GM.Print("enter a name first"); return end
-        MoP_GM._ExecuteRaw(".tele del " .. n)
         local list = MoP_GM.db.userTeleports or {}
+        local removed = 0
         for i = #list, 1, -1 do
-            if list[i].name == n then table.remove(list, i) end
+            if list[i].name:lower() == n:lower() then
+                table.remove(list, i); removed = removed + 1
+            end
+        end
+        if removed > 0 then
+            MoP_GM.Print("removed '" .. n .. "' from local list (still exists on server).")
+        else
+            MoP_GM.Print("'" .. n .. "' not found in local list.")
         end
     end)
+end
+
+local function buildGoPanel(parent)
+    MoP_GM.LayoutRows(parent, MoP_GM.Commands.TeleGo)
 end
 
 local function buildLocationsPanel(parent)
@@ -81,7 +97,8 @@ MoP_GM.RegisterTab({
     id = "teleport", label = "Teleport",
     builder = function(parent)
         MoP_GM.BuildSubTabs(parent, {
-            { label = "Commands",  builder = buildCommandsPanel  },
+            { label = "Tele",      builder = buildTelePanel      },
+            { label = "Go",        builder = buildGoPanel        },
             { label = "Locations", builder = buildLocationsPanel },
         }, "subTab_teleport")
     end,

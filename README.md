@@ -7,7 +7,7 @@
 
 A clean, movable GM panel for **World of Warcraft Mists of Pandaria 5.4.8** private servers — built and tested against [Emucoach](https://www.emucoach.com/) repacks (TrinityCore-based).
 
-Every common GM command is one click away, with input fields right next to each command. PlayerBot and NpcBot management included.
+Every common GM command is one click away, with input fields right next to each command. Every command has been **cross-checked against the server's `world.command` table** so the addon only exposes what actually works on your server.
 
 ### ⬇ [Download the latest release](https://github.com/timoinglin/MoP_GM/releases/latest/download/MoP_GM.zip)
 
@@ -16,13 +16,13 @@ Every common GM command is one click away, with input fields right next to each 
 ## Screenshots
 
 ![General tab — GM toggles, cheats, modify](screenshots/general.jpg)
-*General tab with the **Toggles** and **Cheats & Modify** sub-tabs.*
+*General tab — **Toggles** and **Cheats & Modify** sub-tabs, 2-column layout.*
 
 ![Player tab — character ops](screenshots/player.jpg)
-*Player tab with sub-tabs for Target, Modify, Spells, and Reset.*
+*Player tab — six sub-tabs: Target, Modify, Spells, Learn, Reset, Character.*
 
 ![Server tab — admin commands](screenshots/server.jpg)
-*Server tab — announce, motd, save, shutdown/restart, reload tables.*
+*Server tab — Announce / Status / Lifecycle sub-tabs.*
 
 ---
 
@@ -54,6 +54,7 @@ Every common GM command is one click away, with input fields right next to each 
 | `/gm` *or* `/mopgm` | Toggle the panel |
 | `/mopgm reset` | Recenter panel and minimap button |
 | `/mopgm debug` | Print module load status (for troubleshooting) |
+| `/mopgm probe <command>` | Send a chat command and capture its server response inline |
 
 Destructive commands (ban, kick, server shutdown, reset, delete, …) show a confirmation popup before sending.
 
@@ -61,20 +62,20 @@ Destructive commands (ban, kick, server shutdown, reset, delete, …) show a con
 
 ## Tabs
 
-| Tab | What's inside |
-|---|---|
-| **General** | GM toggles (`.gm on/off`, fly, visible), cheat suite (god, power, cooldown, casttime, waterwalk, explore), morph, mount, modify scale/speed/swim/fly |
-| **Player** | Appear/summon/kick, modify level/money/hp/mana/honor, learn/cast/aura, reset talents/spells/skills, character rename / changerace / changefaction, freeze, unstuck |
-| **Items** | additem, additemset, removeitem, repair, item restore, bank, void storage, mailbox |
-| **NPC** | Spawn, move, say/yell/whisper/emote, possess, modify level/faction/model, lookup |
-| **Object** | Spawn, move, turn, lookup gameobjects |
-| **Teleport** | Free-form `.tele`/`.go` commands plus a clickable grid of every major MoP location (capitals, shrines, zones, raids); save/delete custom names |
-| **Quest** | add / complete / remove / reward, lookup |
-| **Server** | announce, motd, save, shutdown / restart, reload tables |
-| **Moderation** | ban / unban / mute / kick — all destructive, all with confirmation popup |
-| **Bots** | **PlayerBot** (`.bot` / `.bots`) and **NpcBot** (`.npcbot`) sub-tabs |
-| **Favorites** | Your pinned commands, persisted across sessions |
-| **History** | Last 20 commands you sent — click any to re-run |
+| Tab | Sub-tabs | What's inside |
+|---|---|---|
+| **General** | Toggles • Cheats & Modify | `.gm on/off/fly/visible/chat/list/ingame`, `.gps`, `.cheat god/power/cooldown/casttime/waterwalk/explore/taxi/status`, `.morph`, `.mount`, `.modify scale`, `.modify speed all/walk/backwalk/swim/fly` |
+| **Player** | Target • Modify • Spells • Learn • Reset • Character | All player operations: appear/summon/kick/freeze/revive, modify hp/mana/rage/energy/honor/runicpower/phase/gender/drunk/standstate/faction/reputation/currency, the full `.cast` and `.learn` families, reset talents/spells/stats/level/achievements/honor/pvpstat, `.character level/rename/customize/changerace/changefaction/changeclass/boost/gear/spec/role/reputation/titles/deleted list/deleted restore/erase` |
+| **Items** | flat | `.additem`, `.additemset`, `.removeitem`, `.repairitems`, `.deleteditem list/restore`, `.itemdelete`, `.send items`, `.send money`, `.list item`, `.lookup item/itemset`, `.bank` |
+| **NPC** | Spawn • Modify | spawn / delete / move / follow / chat (say/yell/whisper/playemote), full `.npc set` family (level / factionid / entry / flag / model / movetype / phase / spawndist / spawntime), `.lookup creature/event/faction`, `.distance`, `.guid` |
+| **Object** | flat | `.gobject add`, `.gobject add temp`, delete / move / turn / near / target / info / activate, `.gobject set phase`, `.lookup object` |
+| **Teleport** | Tele • Go • Locations | `.tele <name>`, `.tele group`, `.tele name`, `appear` / `summon`, plus the full `.go` family (xyz/zonexy/creature/object/graveyard/grid/taxinode/ticket/trigger), `lookup tele/area/map/taxinode`, and a clickable grid of every major MoP location |
+| **Quest** | flat | `.quest add`, `.quest complete`, `.quest remove`, `.quest reward`, `.lookup quest` |
+| **Server** | Announce • Status • Lifecycle | All announce variants (`announce / nameannounce / gmannounce / gmnameannounce / notify / gmnotify`), `send mail / message`, `.server info / motd / set motd / set closed / set loglevel / plimit / corpses / stats mapupdate / saveall / reload`, full shutdown/restart family with cancels (`.server shutdown / restart / idleshutdown / idlerestart` + each `cancel`), `.server exit` |
+| **Moderation** | Bans • Mute / Inspect | `.ban account/character/playeraccount/ip` + each `.unban` + each `.baninfo` + each `.banlist`, `.mute / .unmute` + `.mutelist account/character`, `.kick`, `.freeze / .unfreeze / .listfreeze`, `.pinfo`, `.lookup player account/ip/email`, `.whispers` |
+| **Bots** | flat | Emucoach reworked PlayerBot system: `.bot add` (gossip), `.bot addRoleBotsToGroup`, `.bot manageselectedbot`, `.bot manageparty` |
+| **Favorites** | dynamic | Your pinned commands, persisted across sessions |
+| **History** | dynamic | Last 20 commands you sent — click any to re-run |
 
 Tabs with many commands are split into **sub-tabs** so nothing scrolls and the UI stays snappy.
 
@@ -90,9 +91,9 @@ Tabs with many commands are split into **sub-tabs** so nothing scrolls and the U
 
 ## Troubleshooting
 
-If something looks wrong, run `/mopgm debug` in chat. It prints whether each module loaded and whether the main frame and toggle button were created. If any module shows `MISSING`, that file failed to load — copy the output and open an issue.
-
-If the toggle button is hidden behind the minimap or off-screen, run `/mopgm reset` to recenter it.
+- **Something looks wrong** — run `/mopgm debug`. It prints whether each module loaded and whether the main frame and toggle button were created. If any module shows `MISSING`, that file failed to load — copy the output and [open an issue](https://github.com/timoinglin/MoP_GM/issues).
+- **Toggle button is off-screen / behind the minimap** — run `/mopgm reset` to recenter both the panel and the launcher button.
+- **A button doesn't work on your server** — run `/mopgm probe <command>` (e.g. `/mopgm probe .additem 6948 1`) to capture the server's response inline. If your server returns "no such command" or "no such subcommand", that command isn't installed on your repack — open an issue with the probe output and we'll adjust the addon.
 
 ---
 

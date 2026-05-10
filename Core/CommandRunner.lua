@@ -11,6 +11,45 @@ function MoP_GM._ExecuteRaw(line)
     MoP_GM.PushHistory(line)
 end
 
+-- Send a command and capture the next ~2 seconds of CHAT_MSG_SYSTEM responses
+-- back into chat, prefixed so they're easy to spot/copy. Used by /mopgm probe
+-- for live testing — much less noise than scrolling the whole chat log.
+function MoP_GM.Probe(line)
+    line = MoP_GM.Trim(line or "")
+    if line == "" then
+        DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[MoP_GM probe]|r usage: /mopgm probe <command>")
+        return
+    end
+    if not line:match("^[%./]") then line = "." .. line end
+
+    local capture = {}
+    local listener = CreateFrame("Frame")
+    listener:RegisterEvent("CHAT_MSG_SYSTEM")
+    listener:SetScript("OnEvent", function(self, event, msg)
+        table.insert(capture, msg)
+    end)
+
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99[MoP_GM probe]|r " .. line)
+    SendChatMessage(line, "SAY")
+
+    -- 5.4.8 doesn't have C_Timer; poll OnUpdate until the window elapses.
+    local elapsed = 0
+    listener:SetScript("OnUpdate", function(self, dt)
+        elapsed = elapsed + dt
+        if elapsed >= 2 then
+            self:SetScript("OnUpdate", nil)
+            self:UnregisterAllEvents()
+            if #capture == 0 then
+                DEFAULT_CHAT_FRAME:AddMessage("  |cffaaaaaa(no system response in 2s)|r")
+            else
+                for _, msg in ipairs(capture) do
+                    DEFAULT_CHAT_FRAME:AddMessage("  |cff66ddff>|r " .. msg)
+                end
+            end
+        end
+    end)
+end
+
 -- Public entry point. opts.danger=true pops a confirm dialog first.
 function MoP_GM.RunCommand(line, opts)
     if MoP_GM.IsBlank(line) then return end

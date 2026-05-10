@@ -4,7 +4,7 @@
 local addonName = ...
 MoP_GM = MoP_GM or {}
 MoP_GM.name = "MoP_GM"
-MoP_GM.version = "1.0.0"
+MoP_GM.version = "1.1.0"
 
 MoP_GM.defaults = {
     frame = { point = "CENTER", relPoint = "CENTER", x = 0, y = 0, shown = false },
@@ -57,7 +57,15 @@ end)
 SLASH_MOPGM1 = "/mopgm"
 SLASH_MOPGM2 = "/gm"
 SlashCmdList["MOPGM"] = function(msg)
-    msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    msg = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local lcmd = msg:lower()
+    -- `probe` is special: preserve the original case of the rest of the line
+    -- because some servers care about it (e.g. character names).
+    if lcmd == "probe" or lcmd:sub(1, 6) == "probe " then
+        if MoP_GM.Probe then MoP_GM.Probe(msg:sub(7)) end
+        return
+    end
+    msg = lcmd
     if msg == "reset" then
         MoP_GM.db.frame = nil
         MoP_GM.db.button = nil
@@ -88,9 +96,8 @@ SlashCmdList["MOPGM"] = function(msg)
             { "ConfirmDialog", StaticPopupDialogs and StaticPopupDialogs["MOPGM_CONFIRM_CMD"] },
             { "Widgets",       MoP_GM.ApplyBackdrop },
             { "MainFrame",     MoP_GM.RegisterTab },
-            { "PlayerBot tab", MoP_GM.BuildPlayerBotPanel },
-            { "NpcBot tab",    MoP_GM.BuildNpcBotPanel },
             { "ToggleButton",  MoP_GM.Toggle },
+            { "Probe",         MoP_GM.Probe },
         }) do
             pp("    " .. c[1], c[2] and "ok" or "|cffff5555MISSING|r")
         end
