@@ -11,6 +11,10 @@ Every common GM command is one click away, with input fields right next to each 
 
 ### ⬇ [Download the latest release](https://github.com/timoinglin/MoP_GM/releases/latest/download/MoP_GM.zip)
 
+> 💛 **Using the GM panel?** It's free and open-source, built and maintained in spare time. If it's saved you time managing your server — or you'd like to see it keep growing — a coffee genuinely helps. See [Support the Project](#support-the-project).
+>
+> [![Support the project on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kneuma)
+
 ---
 
 ## Screenshots
@@ -94,6 +98,16 @@ Tabs with many commands are split into **sub-tabs** so nothing scrolls and the U
 - **Something looks wrong** — run `/mopgm debug`. It prints whether each module loaded and whether the main frame and toggle button were created. If any module shows `MISSING`, that file failed to load — copy the output and [open an issue](https://github.com/timoinglin/MoP_GM/issues).
 - **Toggle button is off-screen / behind the minimap** — run `/mopgm reset` to recenter both the panel and the launcher button.
 - **A button doesn't work on your server** — run `/mopgm probe <command>` (e.g. `/mopgm probe .additem 6948 1`) to capture the server's response inline. If your server returns "no such command" or "no such subcommand", that command isn't installed on your repack — open an issue with the probe output and we'll adjust the addon.
+
+---
+
+## Support the Project
+
+This project is free and open-source, built and maintained in spare time. If it's saved you time managing your server — or you'd just like to see it keep growing — a coffee is hugely appreciated and helps keep the WoW repack tools maintained and improving.
+
+[![Support the project on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/kneuma)
+
+Every contribution also funds more free tools for the MoP / Cata repack community — thank you! 💛
 
 ---
 
