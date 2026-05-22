@@ -90,7 +90,21 @@ The panel header shows your **current target** — handy because many commands a
 
 Tabs with many commands are split into **sub-tabs** so nothing scrolls and the UI stays snappy.
 
-> ℹ **Where do `.pdump` files go?** Character dumps are written on the **server host**, in the worldserver's working directory (next to `worldserver.exe`) when you pass a plain filename — e.g. `.pdump write bob.sql Bob`. Give an absolute path (e.g. `.pdump write C:\dumps\bob.sql Bob`) to write elsewhere; the folder must already exist. `.pdump load` looks for the file the same way.
+### 💾 Character backup & transfer with `.pdump`
+
+`.pdump write` (Server ▸ Status) creates a **complete, portable dump of a single character** — not just the `characters` row. It captures everything that character owns and knows in one self-contained `.sql` file:
+
+> items & where they sit (bags / bank / equipped), inventory, spells, talents, glyphs, skills, action bars, currencies, reputations, achievements & progress, completed quests, homebind, and more — only the tables that character actually has data in. A played character routinely dumps **hundreds of rows across a dozen-plus tables**.
+
+`.pdump load <file> <account>` recreates that whole character on any account — **GUIDs and item GUIDs are remapped automatically**, so it never collides with existing characters or items. That makes it perfect for:
+
+- **Backups** — snapshot a character before a risky change, restore it if something breaks.
+- **Transfers** — move a character to another account, realm, or even a different server.
+- **Templates** — dump a fully-geared character and load copies onto multiple accounts.
+
+It's character-scoped, so it does **not** carry the account itself or its other characters. Nothing touches the live database until you run `.pdump load`.
+
+> ℹ **Where does the file go?** It's written on the **server host**, in the worldserver's working directory (next to `worldserver.exe`) when you pass a plain filename — e.g. `.pdump write bob.sql Bob`. Give an absolute path (e.g. `.pdump write C:\dumps\bob.sql Bob`) to write elsewhere; the folder must already exist. `.pdump load` looks for the file the same way.
 
 ---
 
