@@ -90,6 +90,8 @@ The panel header shows your **current target** — handy because many commands a
 
 Tabs with many commands are split into **sub-tabs** so nothing scrolls and the UI stays snappy.
 
+> ℹ **Where do `.pdump` files go?** Character dumps are written on the **server host**, in the worldserver's working directory (next to `worldserver.exe`) when you pass a plain filename — e.g. `.pdump write bob.sql Bob`. Give an absolute path (e.g. `.pdump write C:\dumps\bob.sql Bob`) to write elsewhere; the folder must already exist. `.pdump load` looks for the file the same way.
+
 ---
 
 ## Compatibility
