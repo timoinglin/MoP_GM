@@ -4,7 +4,7 @@
 local addonName = ...
 MoP_GM = MoP_GM or {}
 MoP_GM.name = "MoP_GM"
-MoP_GM.version = "1.1.0"
+MoP_GM.version = "1.2.0"
 
 MoP_GM.defaults = {
     frame = { point = "CENTER", relPoint = "CENTER", x = 0, y = 0, shown = false },

@@ -26,7 +26,10 @@ Every common GM command is one click away, with input fields right next to each 
 *Player tab — six sub-tabs: Target, Modify, Spells, Learn, Reset, Character.*
 
 ![Server tab — admin commands](screenshots/server.jpg)
-*Server tab — Announce / Status / Lifecycle sub-tabs.*
+*Server tab — Announce / Status / Lifecycle / Events sub-tabs.*
+
+![Player ▸ Guild — guild administration](screenshots/guild.png)
+*Player ▸ Guild — create / invite / rank / rename / delete guilds straight from the panel.*
 
 ---
 
@@ -51,6 +54,8 @@ Every common GM command is one click away, with input fields right next to each 
 |---|---|
 | **Click** a command label | Runs the command using the values in the input fields |
 | **Press Enter** in any input field | Runs the command for that row |
+| **Hover** a command label | Shows the exact command it will send, its help text, and whether it asks for confirmation |
+| **SHIFT-click** a command label | Drops the built command into the chat box to edit before sending (instead of running it) |
 | **Right-click** any command label | Pin / unpin it from the **Favorites** tab |
 | **SHIFT-drag** the minimap button | Move the launcher button anywhere on screen |
 | **Drag the panel header** | Move the main panel |
@@ -62,6 +67,8 @@ Every common GM command is one click away, with input fields right next to each 
 
 Destructive commands (ban, kick, server shutdown, reset, delete, …) show a confirmation popup before sending.
 
+The panel header shows your **current target** — handy because many commands act on the selected unit when their name field is left blank.
+
 ---
 
 ## Tabs
@@ -69,14 +76,14 @@ Destructive commands (ban, kick, server shutdown, reset, delete, …) show a con
 | Tab | Sub-tabs | What's inside |
 |---|---|---|
 | **General** | Toggles • Cheats & Modify | `.gm on/off/fly/visible/chat/list/ingame`, `.gps`, `.cheat god/power/cooldown/casttime/waterwalk/explore/taxi/status`, `.morph`, `.mount`, `.modify scale`, `.modify speed all/walk/backwalk/swim/fly` |
-| **Player** | Target • Modify • Spells • Learn • Reset • Character | All player operations: appear/summon/kick/freeze/revive, modify hp/mana/rage/energy/honor/runicpower/phase/gender/drunk/standstate/faction/reputation/currency, the full `.cast` and `.learn` families, reset talents/spells/stats/level/achievements/honor/pvpstat, `.character level/rename/customize/changerace/changefaction/changeclass/boost/gear/spec/role/reputation/titles/deleted list/deleted restore/erase` |
+| **Player** | Target • Modify • Spells • Learn • Reset • Character • Guild | All player operations: appear/summon/kick/freeze/revive/`.damage`, modify hp/mana/rage/energy/honor/runicpower/phase/gender/drunk/standstate/faction/reputation/currency, the full `.cast` and `.learn` families, reset talents/spells/stats/level/achievements/honor/pvpstat, `.achievement add`, `.instance unbind/listbinds/stats`, `.character level/rename/customize/changerace/changefaction/changeclass/boost/gear/spec/role/reputation/titles/deleted list/deleted restore/erase`, and **Guild** admin (`.guild create/invite/rank/uninvite/rename/delete`) |
 | **Items** | flat | `.additem`, `.additemset`, `.removeitem`, `.repairitems`, `.deleteditem list/restore`, `.itemdelete`, `.send items`, `.send money`, `.list item`, `.lookup item/itemset`, `.bank` |
-| **NPC** | Spawn • Modify | spawn / delete / move / follow / chat (say/yell/whisper/playemote), full `.npc set` family (level / factionid / entry / flag / model / movetype / phase / spawndist / spawntime), `.lookup creature/event/faction`, `.distance`, `.guid` |
+| **NPC** | Spawn • Modify | spawn / delete / move / follow / chat (say/yell/whisper/playemote), `.cometome`, `.respawn`, full `.npc set` family (level / factionid / entry / flag / model / movetype / phase / spawndist / spawntime), `.lookup creature/event/faction`, `.distance`, `.guid` |
 | **Object** | flat | `.gobject add`, `.gobject add temp`, delete / move / turn / near / target / info / activate, `.gobject set phase`, `.lookup object` |
-| **Teleport** | Tele • Go • Locations | `.tele <name>`, `.tele group`, `.tele name`, `appear` / `summon`, plus the full `.go` family (xyz/zonexy/creature/object/graveyard/grid/taxinode/ticket/trigger), `lookup tele/area/map/taxinode`, and a clickable grid of every major MoP location |
+| **Teleport** | Tele • Go • Locations • My Locations | `.tele <name>`, `.tele group`, `.tele name`, `appear` / `summon`, plus the full `.go` family (xyz/zonexy/creature/object/graveyard/grid/taxinode/ticket/trigger), `lookup tele/area/map/taxinode`. **Locations** is a paginated grid of verified MoP destinations; **Import from server** scrapes `.lookup tele` to pull your server's *own* teleport names into the list; **My Locations** holds the ones you've added (save-current-spot or imported), each with a delete button |
 | **Quest** | flat | `.quest add`, `.quest complete`, `.quest remove`, `.quest reward`, `.lookup quest` |
-| **Server** | Announce • Status • Lifecycle | All announce variants (`announce / nameannounce / gmannounce / gmnameannounce / notify / gmnotify`), `send mail / message`, `.server info / motd / set motd / set closed / set loglevel / plimit / corpses / stats mapupdate / saveall / reload`, full shutdown/restart family with cancels (`.server shutdown / restart / idleshutdown / idlerestart` + each `cancel`), `.server exit` |
-| **Moderation** | Bans • Mute / Inspect | `.ban account/character/playeraccount/ip` + each `.unban` + each `.baninfo` + each `.banlist`, `.mute / .unmute` + `.mutelist account/character`, `.kick`, `.freeze / .unfreeze / .listfreeze`, `.pinfo`, `.lookup player account/ip/email`, `.whispers` |
+| **Server** | Announce • Status • Lifecycle • Events | All announce variants (`announce / nameannounce / gmannounce / gmnameannounce / notify / gmnotify`), `send mail / message`, `.server info / motd / set motd / set closed / set loglevel / plimit / corpses / stats mapupdate / saveall / reload`, `.pdump write/load`, full shutdown/restart family with cancels (`.server shutdown / restart / idleshutdown / idlerestart` + each `cancel`), `.server exit`, and **Events** (`.event activelist/start/stop`) |
+| **Moderation** | Bans • Mute / Inspect • Deserter • Accounts | `.ban account/character/playeraccount/ip` + each `.unban` + each `.baninfo` + each `.banlist`, `.mute / .unmute` + `.mutelist account/character`, `.kick`, `.freeze / .unfreeze / .listfreeze`, `.pinfo`, `.lookup player account/ip/email`, `.whispers`, **Deserter** debuff add/remove (BG + instance), and **Accounts** admin (`.account create/delete/set gmlevel/set password/onlinelist`) |
 | **Bots** | flat | Emucoach reworked PlayerBot system: `.bot add` (gossip), `.bot addRoleBotsToGroup`, `.bot manageselectedbot`, `.bot manageparty` |
 | **Favorites** | dynamic | Your pinned commands, persisted across sessions |
 | **History** | dynamic | Last 20 commands you sent — click any to re-run |

@@ -150,14 +150,43 @@ function MoP_GM.CreateCommandRow(parent, def)
         MoP_GM.RunCommand(line, { danger = def.danger })
     end
 
-    -- Left-click → run; right-click → toggle Favorite.
+    -- Left-click → run; Shift+left → drop into chat box to edit; right-click → Favorite.
     btn:SetScript("OnClick", function(_, mouseButton)
         if mouseButton == "RightButton" then
             MoP_GM.ToggleFavorite(def)
+        elseif IsShiftKeyDown() then
+            local vals = gatherValues()
+            local line = MoP_GM.BuildLine(def, vals)
+            if not line then
+                -- Best-effort: fill in what's typed, leave <placeholders> for the rest.
+                line = def.format
+                for _, arg in ipairs(def.args or {}) do
+                    local v = vals[arg.key]
+                    local sub = (v and v ~= "" and v) or ("<" .. (arg.placeholder or arg.key) .. ">")
+                    line = line:gsub("%%s", sub, 1)
+                end
+            end
+            ChatFrame_OpenChat(line)
         else
             execute()
         end
     end)
+
+    -- Hover tooltip: command preview + help + interaction hints.
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(def.label or def.id or "", 0.2, 1, 0.6)
+        local preview = def.format or ""
+        for _, arg in ipairs(def.args or {}) do
+            preview = preview:gsub("%%s", "<" .. (arg.placeholder or arg.key) .. ">", 1)
+        end
+        GameTooltip:AddLine(preview, 0.6, 0.85, 1, true)
+        if def.tooltip then GameTooltip:AddLine(def.tooltip, 1, 1, 1, true) end
+        if def.danger then GameTooltip:AddLine("Asks for confirmation before sending.", 1, 0.45, 0.45, true) end
+        GameTooltip:AddLine("Left-click run  ·  Shift-click edit in chat  ·  Right-click pin", 0.55, 0.55, 0.55, true)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     return row
 end

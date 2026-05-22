@@ -134,6 +134,24 @@ local function createMainFrame()
     close:SetPoint("TOPRIGHT", header, "TOPRIGHT", 4, 4)
     close:SetScript("OnClick", function() f:Hide() end)
 
+    -- Current-target readout. Many commands fall back to UnitName("target")
+    -- when their name field is blank, so showing it here makes those buttons
+    -- predictable.
+    local targetFS = header:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    targetFS:SetPoint("RIGHT", close, "LEFT", -10, 0)
+    local function updateTarget()
+        local n = UnitName("target")
+        if n and n ~= "" then
+            targetFS:SetText("Target: " .. MoP_GM.colors.accent .. n .. MoP_GM.colors.reset)
+        else
+            targetFS:SetText("|cff888888No target|r")
+        end
+    end
+    f:RegisterEvent("PLAYER_TARGET_CHANGED")
+    f:SetScript("OnEvent", updateTarget)
+    f:HookScript("OnShow", updateTarget)
+    updateTarget()
+
     -- Tab strip placeholder; tabs registered by tab files, built in OnLogin.
     f.tabStrip = buildTabStrip(f)
 

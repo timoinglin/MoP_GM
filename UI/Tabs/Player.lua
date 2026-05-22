@@ -9,6 +9,7 @@ MoP_GM.RegisterTab({
             { label = "Learn",     rows = MoP_GM.Commands.PlayerLearn  },
             { label = "Reset",     rows = MoP_GM.Commands.PlayerReset  },
             { label = "Character", rows = MoP_GM.Commands.PlayerChar   },
+            { label = "Guild",     rows = MoP_GM.Commands.Guild        },
         }, "subTab_player")
     end,
 })

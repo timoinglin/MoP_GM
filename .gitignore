@@ -9,6 +9,10 @@ MoP_GM-*.zip
 # Local dev tooling (RA test scripts, ad-hoc test reports — may contain creds)
 tools/
 
+# Cloned helper MCP server (DB/RA access during dev — has local config + creds)
+wow-server-mcp/
+.mcp.json
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db

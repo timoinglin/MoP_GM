@@ -71,6 +71,7 @@ C.PlayerTarget = {
     { id="recall",   label="recall",   format=".recall %s",  args={ nameArg{ optional=true } }, tooltip="Teleport player back to recall position." },
     { id="kick",     label="kick",     format=".kick %s %s", args={ nameArg(),{key="reason",placeholder="(optional reason)",optional=true} }, danger=true },
     { id="die",      label="die (kill selected)",format=".die",       danger=true, tooltip="Kill the selected unit. Kills you if nothing selected." },
+    { id="damage",   label="damage",   format=".damage %s",  args={{key="amount",placeholder="amount",numeric=true}}, danger=true, tooltip="Apply flat damage to the selected target." },
     { id="revive",   label="revive",   format=".revive %s",  args={ nameArg{ optional=true } }, tooltip="Revive target/named player." },
     { id="freeze",   label="freeze",   format=".freeze %s %s",args={ nameArg{ optional=true },{key="seconds",placeholder="duration s",numeric=true,optional=true} }, tooltip="Freeze player in place." },
     { id="unfreeze", label="unfreeze", format=".unfreeze %s",args={ nameArg{ optional=true } } },
@@ -148,6 +149,11 @@ C.PlayerReset = {
     { id="rsthonor",    label="reset honor",       format=".reset honor %s",        args={ nameArg{ optional=true } }, danger=true },
     { id="rstpvp",      label="reset pvpstat",     format=".reset pvpstat %s",      args={ nameArg{ optional=true } }, danger=true },
     { id="unstuck",     label="unstuck",           format=".unstuck %s",            args={ nameArg{ optional=true } } },
+    -- Achievement grant + instance lockout clearing (operate on the target).
+    { id="achadd",      label="achievement add",   format=".achievement add %s",    args={{key="id",placeholder="achievementId",numeric=true}}, tooltip="Grant an achievement to the targeted player." },
+    { id="instunbind",  label="instance unbind",   format=".instance unbind %s %s", args={{key="map",placeholder="mapId or all"},{key="diff",placeholder="(difficulty)",numeric=true,optional=true}}, tooltip="Clear the selected player's saved instance binds (use 'all' to clear every lockout)." },
+    { id="instbinds",   label="instance listbinds",format=".instance listbinds",    tooltip="List the selected player's instance binds." },
+    { id="inststats",   label="instance stats",    format=".instance stats",        tooltip="Show server instance statistics." },
 }
 
 -- ─── Player → Character ───────────────────────────────────────────────────
@@ -156,14 +162,17 @@ C.PlayerReset = {
 -- titles, changeclass, changeaccount, boost, gear, setupItemCache, spec,
 -- role, cleanup. Most useful subset surfaced here.
 C.PlayerChar = {
-    { id="charlevel",  label="character level",     format=".character level %s %s",    args={ nameArg{ optional=true },{key="levels",placeholder="+/- delta",numeric=true,optional=true} }, tooltip="Bump named (or selected) character's level. Empty delta = +1." },
-    { id="charrename", label="character rename",    format=".character rename %s",      args={ nameArg() } },
-    { id="charcust",   label="character customize", format=".character customize %s",   args={ nameArg() } },
-    { id="charcrace",  label="change race",         format=".character changerace %s",  args={ nameArg() } },
-    { id="charcfac",   label="change faction",      format=".character changefaction %s",args={ nameArg() } },
-    { id="charcclass", label="change class",        format=".character changeclass %s", args={ nameArg() } },
+    -- ⚠ `.character level` sets an ABSOLUTE level, not a delta (verified live:
+    -- a lvl-1 char + `.character level 89` → lvl 89, not 90). Sec 7.
+    { id="charlevel",  label="character level",     format=".character level %s %s",    args={ nameArg{ optional=true },{key="level",placeholder="exact level 1-90",numeric=true,optional=true} }, tooltip="Set the character to this EXACT level (absolute value, NOT a delta) — e.g. 90 means level 90, not +90." },
+    { id="charrename", label="character rename",    format=".character rename %s",      args={ nameArg() }, tooltip="Flag a forced rename; the rename prompt appears at the player's next login. Cleanest when the target is offline." },
+    { id="charcust",   label="character customize", format=".character customize %s",   args={ nameArg() }, tooltip="Full appearance redo (character-creation screen) at next login." },
+    { id="charcrace",  label="change race",         format=".character changerace %s",  args={ nameArg() }, tooltip="Flag a race change; applied at next login." },
+    { id="charcfac",   label="change faction",      format=".character changefaction %s",args={ nameArg() }, tooltip="Flag a faction change; applied at next login." },
+    { id="charcclass", label="change class",        format=".character changeclass %s", args={ nameArg() }, tooltip="Flag a class change; applied at next login." },
     { id="charboost",  label="character boost",     format=".character boost %s",       args={ nameArg{ optional=true } }, tooltip="Apply character boost to named/selected." },
-    { id="chargear",   label="character gear",      format=".character gear %s",        args={{key="action",placeholder="(optional)",optional=true}}, tooltip="Auto-equips gear / riding for selected." },
+    -- `.character gear` is a PlayerBots script command (not in world.command).
+    { id="chargear",   label="character gear",      format=".character gear %s",        args={{key="action",placeholder="max (only useful arg)",optional=true}}, tooltip="Equip the selected bot/char. Only 'max' is meaningful (top of range); other words fall through to default. ilvl ceiling is set by PlayerBots.GearScale in worldserver.conf (restart to apply)." },
     { id="charspec",   label="character spec",      format=".character spec %s",        args={{key="spec",placeholder="(optional)",optional=true}}, tooltip="Apply class spec abilities to selected." },
     { id="charrole",   label="character role",      format=".character role %s",        args={{key="role",placeholder="(optional)",optional=true}}, tooltip="Re-roll role for selected." },
     -- `.character reputation` with no args shows reputation list for selected.
@@ -212,6 +221,8 @@ C.NPCSpawn = {
     { id="npcmove",    label="npc move",         format=".npc move",          tooltip="Move selected creature spawn point here." },
     { id="npcfollow",  label="npc follow start", format=".npc follow",        tooltip="Selected creature follows you." },
     { id="npcfollowstop",label="npc follow stop",format=".npc follow stop",   tooltip="Stop following." },
+    { id="cometome",   label="come to me",       format=".cometome",          tooltip="Selected creature walks to your current position (not saved to DB)." },
+    { id="respawn",    label="respawn nearby",   format=".respawn",           tooltip="Respawn all nearby creatures & gameobjects now, ignoring respawn timers." },
     { id="npcinfo",    label="npc info",         format=".npc info" },
     { id="npcsay",     label="npc say",          format=".npc say %s",        args={{key="text",placeholder="text"}} },
     { id="npcyell",    label="npc yell",         format=".npc yell %s",       args={{key="text",placeholder="text"}} },
@@ -222,7 +233,7 @@ C.NPCSpawn = {
 -- ─── NPC → Modify / Lookup ───────────────────────────────────────────────
 -- Full `.npc set` subcommand list confirmed in DB: allowmove, data, entry,
 -- factionid, flag, level, link, model, movetype, phase, spawndist, spawntime.
--- `.respawn` and `.repopall` are NOT in DB — removed.
+-- `.repopall` is NOT in DB. `.respawn` IS (sec 6) — lives in Spawn / Move above.
 C.NPCModify = {
     { id="npcsetlvl",   label="npc set level",     format=".npc set level %s",     args={{key="level",placeholder="1-90",numeric=true}} },
     { id="npcsetfac",   label="npc set factionid", format=".npc set factionid %s", args={{key="faction",placeholder="factionId",numeric=true}}, tooltip="Set creature faction." },
@@ -321,6 +332,9 @@ C.ServerStatus = {
     { id="srvstatsmu",  label="server stats mapupdate",format=".server stats mapupdate",tooltip="Map update timing diagnostic." },
     { id="saveall",     label="saveall",         format=".saveall",                tooltip="Save all online players to DB." },
     { id="reload",      label="reload table",    format=".reload %s",              args={{key="table",placeholder="creature_template / quest_template / all"}} },
+    -- Character export / import (dump files are written on the SERVER host).
+    { id="pdumpwrite",  label="pdump write",     format=".pdump write %s %s",      args={{key="file",placeholder="filename"},{key="who",placeholder="name or guid"}}, tooltip="Export a character to a dump file on the server." },
+    { id="pdumpload",   label="pdump load",      format=".pdump load %s %s %s %s", args={{key="file",placeholder="filename"},{key="account",placeholder="target account"},{key="newname",placeholder="(new name)",optional=true},{key="newguid",placeholder="(new guid)",numeric=true,optional=true}}, tooltip="Import a character dump file into an account." },
 }
 
 -- ─── Server / Lifecycle (shutdown / restart) ──────────────────────────────
@@ -387,6 +401,46 @@ C.Bots = {
     { id="botaddrole",  label="Add bots by role",   format=".bot addRoleBotsToGroup %s %s", args={{key="role",placeholder="1=heal 2=dps 3=tank",numeric=true},{key="qty",placeholder="qty",numeric=true,optional=true,default="1"}}, tooltip="Directly spawn N bots of given role into your group." },
     { id="botmgrsel",   label="Manage selected",    format=".bot manageselectedbot", tooltip="Per-bot UI: aggressive, follow, flee, equip/trade, talents, attack/heal/cc target." },
     { id="botmgrparty", label="Manage party",       format=".bot manageparty",       tooltip="Party-wide UI: attack, pull, flee on/off, follow on/off, aggressive on/off." },
+}
+
+-- ─── Guild (admin) ────────────────────────────────────────────────────────
+-- Verified vs world.command DB: invite/rank/uninvite sec 5; create/rename/
+-- delete sec 6. Guild name must be quoted (we add the quotes in `format`).
+-- ⚠ There is NO `.guild level` command — guild level is DB-only and
+-- `Guild::SaveToDB` rewrites it on shutdown, so it can't be set in-game.
+C.Guild = {
+    { id="guildcreate",   label="guild create",   format='.guild create %s "%s"',        args={ nameArg{ placeholder="leader (or selected)" }, {key="guild",placeholder="guild name"} }, tooltip="Create a guild with the selected/named LEADER (must be online). Starts at level 1." },
+    { id="guildinvite",   label="guild invite",   format='.guild invite %s "%s"',        args={ nameArg(), {key="guild",placeholder="guild name"} }, tooltip="Add the selected/named player into a guild." },
+    { id="guildrank",     label="guild rank",     format=".guild rank %s %s",            args={ nameArg(), {key="rank",placeholder="rank 0-4",numeric=true} }, tooltip="Set a member's rank (0=Guild Master … 4=Initiate)." },
+    { id="guilduninvite", label="guild uninvite", format=".guild uninvite %s",           args={ nameArg() }, tooltip="Remove the selected/named player from their guild." },
+    { id="guildrename",   label="guild rename",   format='.guild rename "%s" "%s"',      args={{key="guild",placeholder="current name"},{key="newname",placeholder="new name"}}, tooltip="Rename a guild." },
+    { id="guilddelete",   label="guild delete",   format='.guild delete "%s"',           args={{key="guild",placeholder="guild name"}}, danger=true, tooltip="Delete a guild and drop all its members." },
+}
+
+-- ─── Accounts (admin) ─────────────────────────────────────────────────────
+-- Verified vs world.command DB. High security (sec 7-9). create/delete/set
+-- gmlevel/set password are flagged danger (account-altering).
+C.AccountManage = {
+    { id="acccreate",  label="account create",        format=".account create %s %s",       args={{key="acc",placeholder="account"},{key="pass",placeholder="password"}}, danger=true, tooltip="Create a new game account." },
+    { id="accgm",      label="account set gmlevel",   format=".account set gmlevel %s %s %s",args={{key="acc",placeholder="account"},{key="level",placeholder="GM level 0-9",numeric=true},{key="realm",placeholder="realmId (-1 = all)",optional=true,default="-1"}}, danger=true, tooltip="Set an account's GM/security level. realm -1 = all realms." },
+    { id="accpass",    label="account set password",  format=".account set password %s %s %s",args={{key="acc",placeholder="account"},{key="pass",placeholder="new password"},{key="pass2",placeholder="repeat password"}}, danger=true, tooltip="Reset an account's password (enter it twice)." },
+    { id="acconline",  label="account onlinelist",    format=".account onlinelist",          tooltip="List all currently-online accounts." },
+    { id="accdelete",  label="account delete",        format=".account delete %s",          args={{key="acc",placeholder="account"}}, danger=true, tooltip="Delete an account AND all of its characters. No recovery." },
+}
+
+-- ─── Server / Game events ─────────────────────────────────────────────────
+C.ServerEvents = {
+    { id="evtlist",  label="event activelist", format=".event activelist", tooltip="List currently active world/holiday events." },
+    { id="evtstart", label="event start",      format=".event start %s",   args={{key="id",placeholder="eventId",numeric=true}}, tooltip="Start an event now (not saved to DB)." },
+    { id="evtstop",  label="event stop",       format=".event stop %s",    args={{key="id",placeholder="eventId",numeric=true}}, tooltip="Stop an event now (not saved to DB)." },
+}
+
+-- ─── Moderation / Deserter debuff ─────────────────────────────────────────
+C.ModerationDeserter = {
+    { id="desbgadd",   label="deserter bg add",        format=".deserter bg add %s",       args={{key="time",placeholder="seconds"}}, danger=true, tooltip="Apply the Battleground Deserter debuff to your target." },
+    { id="desbgrem",   label="deserter bg remove",     format=".deserter bg remove",       tooltip="Remove the Battleground Deserter debuff from your target." },
+    { id="desinstadd", label="deserter instance add",  format=".deserter instance add %s", args={{key="time",placeholder="seconds"}}, danger=true, tooltip="Apply the Instance Deserter debuff to your target." },
+    { id="desinstrem", label="deserter instance remove",format=".deserter instance remove",tooltip="Remove the Instance Deserter debuff from your target." },
 }
 
 -- Stamp a `group` field onto every entry so favorites can key by group:id.
